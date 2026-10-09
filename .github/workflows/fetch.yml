@@ -1,0 +1,28 @@
+name: fetch-mockups
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download images
+        run: |
+          mkdir -p mockups
+          while IFS=$'\t' read -r handle url; do
+            [ -z "$handle" ] && continue
+            ext="${url##*.}"; ext="${ext%%\?*}"
+            curl -sSL --retry 3 -o "mockups/$handle.$ext" "$url" && echo "ok $handle" || echo "FAIL $handle"
+          done < manifest.tsv
+          ls mockups | wc -l
+      - name: Commit images
+        run: |
+          git config user.name "mockup-fetch"
+          git config user.email "actions@users.noreply.github.com"
+          git add mockups
+          git commit -m "Add downloaded mockups" || echo "nothing to commit"
+          git push
